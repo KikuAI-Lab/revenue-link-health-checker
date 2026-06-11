@@ -1,0 +1,7 @@
+.omx/
+.agent/
+.playwright-mcp/
+.local/
+__pycache__/
+*.py[cod]
+.pytest_cache/
