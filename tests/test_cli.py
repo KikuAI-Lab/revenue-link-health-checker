@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from linkhealth.cli import main
 from linkhealth.io import load_samples
@@ -183,6 +184,72 @@ class CliTests(unittest.TestCase):
         self.assertIn("replace_with_url", output_csv.read_text(encoding="utf-8"))
         self.assertEqual(json.loads(output_json.read_text(encoding="utf-8"))[0]["replacement_url"], "https://new.example/item")
         self.assertIn("Replace https://old.example/item", output_md.read_text(encoding="utf-8"))
+
+    def test_extract_doc_links_writes_samples(self) -> None:
+        directory = Path(tempfile.mkdtemp())
+        document = directory / "roundup.md"
+        output = directory / "samples.csv"
+        document.write_text(
+            "[Camera](https://shop.example/camera)\n"
+            '<a href="https://tools.example/app">Tool</a>\n',
+            encoding="utf-8",
+        )
+
+        self.assertEqual(
+            main(["extract-doc-links", "--input-doc", str(document), "--output-csv", str(output)]),
+            0,
+        )
+
+        samples = load_samples(output)
+        self.assertEqual([sample.original_url for sample in samples], [
+            "https://shop.example/camera",
+            "https://tools.example/app",
+        ])
+
+    def test_patch_doc_writes_fixed_file(self) -> None:
+        directory = Path(tempfile.mkdtemp())
+        document = directory / "roundup.md"
+        repair_actions = directory / "repair-plan.csv"
+        output_doc = directory / "fixed.md"
+        summary_json = directory / "patch-summary.json"
+        document.write_text(
+            "[Camera](https://shop.example/old) [Tool](https://tools.example/keep)\n",
+            encoding="utf-8",
+        )
+        repair_actions.write_text(
+            "sample_id,action,source_reference,source_context,original_url,final_url,"
+            "replacement_url,editor_instruction,confidence,evidence,screenshot_or_evidence_path\n"
+            "web-001,replace_with_url,roundup.md,Camera,https://shop.example/old,"
+            "https://shop.example/old,https://shop.example/new,Replace,high,HTTP 404,\n"
+            "web-002,keep,roundup.md,Tool,https://tools.example/keep,"
+            "https://tools.example/keep,,Keep,high,HTTP 200,\n",
+            encoding="utf-8",
+        )
+
+        self.assertEqual(
+            main(
+                [
+                    "patch-doc",
+                    "--input-doc",
+                    str(document),
+                    "--repair-actions",
+                    str(repair_actions),
+                    "--output-doc",
+                    str(output_doc),
+                    "--summary-json",
+                    str(summary_json),
+                ]
+            ),
+            0,
+        )
+
+        self.assertIn("https://shop.example/new", output_doc.read_text(encoding="utf-8"))
+        self.assertIn("https://tools.example/keep", output_doc.read_text(encoding="utf-8"))
+        self.assertEqual(json.loads(summary_json.read_text(encoding="utf-8"))["replacements_applied"], 1)
+
+    def test_dropzone_handles_keyboard_interrupt(self) -> None:
+        with patch("linkhealth.cli.run_dropzone", side_effect=KeyboardInterrupt):
+            self.assertEqual(main(["dropzone", "--no-open"]), 0)
 
 
 if __name__ == "__main__":

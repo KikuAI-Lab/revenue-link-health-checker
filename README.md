@@ -2,18 +2,21 @@
 
 Standalone local-first tooling for monetized, affiliate, and recommendation-link repair packs.
 
-The project helps an operator turn user-provided or rights-clean public link samples into an evidence-backed repair plan. It can identify deterministic candidate issues, preserve redirect/status evidence, apply manual review decisions, accept optional replacement URLs, and generate editor-ready actions instead of only saying "you have broken links."
+The project helps a user drop a local Markdown/HTML page or an operator sample file into a deterministic repair workflow. It can identify deterministic candidate issues, preserve redirect/status evidence, apply manual review decisions, accept optional replacement URLs, patch exact document URLs, and generate editor-ready actions instead of only saying "you have broken links."
 
 It is intentionally not a SaaS dashboard, browser extension, WordPress plugin, outreach system, public Telegram scraper, crawler fleet, or automatic link replacement tool.
 
 ## What It Does
 
 - imports CSV or JSONL link samples;
+- extracts links from local Markdown and HTML documents;
 - optionally collects outbound content links from one robots-allowed public page;
 - checks redirects, HTTP status, timeout, access-control, and ambiguous outcomes;
 - keeps blocked, CAPTCHA-like, login-gated, geo-dependent, and rate-limited results as ambiguous;
 - requires manual QA before a candidate issue becomes a confirmed issue;
 - generates repair-pack CSV, JSON, and Markdown outputs for editor workflows;
+- patches local Markdown/HTML documents from verified replacement actions;
+- runs a dependency-free localhost dropzone UI for one-window document analysis;
 - generates compact benchmark reports for proof batches.
 
 ## Privacy And Safety
@@ -22,7 +25,7 @@ It is intentionally not a SaaS dashboard, browser extension, WordPress plugin, o
 - No AI model is required.
 - No account or backend service is required.
 - Your local files are not uploaded by this tool.
-- The `check` and `collect-web` commands make outbound HTTP requests from your machine.
+- The `check`, `collect-web`, and `dropzone` analysis flows make outbound HTTP requests from your machine.
 - The tool does not bypass access controls, rotate proxies, solve CAPTCHAs, spoof browser identity, or scrape private/authenticated pages.
 
 ## Install
@@ -72,6 +75,18 @@ Expected files:
   report.html
   report.json
 ```
+
+## Local Dropzone
+
+For the simplest local workflow, start the dropzone:
+
+```bash
+linkhealth dropzone
+```
+
+Then open the shown localhost URL and drop a Markdown or HTML file. The browser sends the file only to the local Python process on your machine. The result appears in the same window as a compact repair pack with candidate issues, ambiguous results, OK links, and editor instructions.
+
+This is not a hosted SaaS upload flow. External links are checked from your machine so browser CORS does not block status and redirect inspection.
 
 ## Basic Workflow
 
@@ -140,6 +155,30 @@ Repair-pack actions are:
 - `needs_manual_qa` when an automated candidate issue has not been reviewed yet;
 - `keep` when no action is needed.
 
+## Document Workflow
+
+Extract links from a local Markdown or HTML file into sample CSV:
+
+```bash
+linkhealth extract-doc-links \
+  --input-doc page.md \
+  --output-csv .local/run/samples.csv
+```
+
+Patch exact URLs in a local document after replacements have been manually verified and written into a repair action CSV or JSON file:
+
+```bash
+linkhealth patch-doc \
+  --input-doc page.md \
+  --repair-actions .local/run/repair-plan.csv \
+  --output-doc .local/run/page.fixed.md \
+  --summary-json .local/run/patch-summary.json
+```
+
+`patch-doc` only applies `replace_with_url` actions that include a replacement URL. It does not auto-edit blocked, ambiguous, unreviewed, or remove-or-replace actions.
+
+One-command document analysis is available through `linkhealth dropzone`.
+
 ## Public Page Collection
 
 Collect external content links from one public robots-allowed page:
@@ -175,4 +214,4 @@ python3 -m unittest discover -s tests -v
 
 ## Status
 
-MVP. The current version is best treated as an operator CLI and proof workflow. Any paid report, monitoring, API, MCP server, or automated replacement workflow should wait for stronger usage and validation evidence.
+MVP. The current version is a local-first repair workflow with both CLI and localhost dropzone surfaces. Any paid report, monitoring, hosted API, MCP server, or bulk automation should wait for stronger usage and validation evidence.

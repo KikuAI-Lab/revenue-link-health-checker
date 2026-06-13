@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
 from .benchmark import init_benchmark_kit
 from .checker import CheckerConfig, check_url
+from .document import extract_document_links, patch_document
+from .dropzone import run_dropzone
 from .io import load_samples, write_samples_csv
 from .models import InputValidationError, SampleInput
-from .repair import build_repair_pack, load_replacements, write_repair_pack_files
+from .repair import build_repair_pack, load_repair_actions, load_replacements, write_repair_pack_files
 from .report import Gates, build_report, write_report_files
 from .web import WebCollectionError, collect_public_page_links
 from .workflow import (
@@ -85,6 +88,25 @@ def _parser() -> argparse.ArgumentParser:
     repair.add_argument("--output-json", type=Path, required=True)
     repair.add_argument("--output-markdown", type=Path, required=True)
     repair.set_defaults(handler=_repair_pack)
+
+    extract_doc = subparsers.add_parser("extract-doc-links", help="extract link samples from a local Markdown or HTML file")
+    extract_doc.add_argument("--input-doc", type=Path, required=True)
+    extract_doc.add_argument("--output-csv", type=Path, required=True)
+    extract_doc.add_argument("--lane", default="web_affiliate")
+    extract_doc.set_defaults(handler=_extract_doc_links)
+
+    patch_doc = subparsers.add_parser("patch-doc", help="patch a local document from verified repair actions")
+    patch_doc.add_argument("--input-doc", type=Path, required=True)
+    patch_doc.add_argument("--repair-actions", type=Path, required=True)
+    patch_doc.add_argument("--output-doc", type=Path, required=True)
+    patch_doc.add_argument("--summary-json", type=Path, required=True)
+    patch_doc.set_defaults(handler=_patch_doc)
+
+    dropzone = subparsers.add_parser("dropzone", help="run a local browser dropzone for document analysis")
+    dropzone.add_argument("--host", default="127.0.0.1")
+    dropzone.add_argument("--port", type=int, default=8765)
+    dropzone.add_argument("--no-open", action="store_true")
+    dropzone.set_defaults(handler=_dropzone)
 
     return parser
 
@@ -176,6 +198,48 @@ def _repair_pack(args: argparse.Namespace) -> int:
         markdown_path=args.output_markdown,
     )
     print(f"repair actions {len(actions)} -> {args.output_markdown}")
+    return 0
+
+
+def _extract_doc_links(args: argparse.Namespace) -> int:
+    text = args.input_doc.read_text(encoding="utf-8")
+    samples = extract_document_links(text, filename=args.input_doc.name, lane=args.lane)
+    write_samples_csv(args.output_csv, samples)
+    print(f"extracted {len(samples)} links -> {args.output_csv}")
+    return 0
+
+
+def _patch_doc(args: argparse.Namespace) -> int:
+    text = args.input_doc.read_text(encoding="utf-8")
+    actions = load_repair_actions(args.repair_actions)
+    result = patch_document(text, actions)
+    args.output_doc.parent.mkdir(parents=True, exist_ok=True)
+    args.summary_json.parent.mkdir(parents=True, exist_ok=True)
+    args.output_doc.write_text(result.text, encoding="utf-8")
+    args.summary_json.write_text(
+        json.dumps(
+            {
+                "input_doc": str(args.input_doc),
+                "output_doc": str(args.output_doc),
+                "repair_actions": len(actions),
+                "replacements_applied": result.replacements_applied,
+                "skipped_actions": result.skipped_actions,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    print(f"patched {result.replacements_applied} links -> {args.output_doc}")
+    return 0
+
+
+def _dropzone(args: argparse.Namespace) -> int:
+    try:
+        run_dropzone(args.host, args.port, open_browser=not args.no_open)
+    except KeyboardInterrupt:
+        print("\ndropzone stopped")
     return 0
 
 

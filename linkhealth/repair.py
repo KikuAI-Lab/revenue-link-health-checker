@@ -69,6 +69,24 @@ def load_replacements(path: Path) -> dict[str, str]:
     return replacements
 
 
+def load_repair_actions(path: Path) -> list[RepairAction]:
+    suffix = path.suffix.lower()
+    if suffix == ".csv":
+        with path.open(newline="", encoding="utf-8") as handle:
+            return [_action_from_mapping(row, row_number) for row_number, row in enumerate(csv.DictReader(handle), start=2)]
+    if suffix == ".json":
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, list):
+            raise InputValidationError("repair action JSON must contain a list")
+        actions: list[RepairAction] = []
+        for row_number, row in enumerate(payload, start=1):
+            if not isinstance(row, dict):
+                raise InputValidationError(f"row {row_number}: expected a JSON object")
+            actions.append(_action_from_mapping(row, row_number))
+        return actions
+    raise InputValidationError(f"unsupported repair action file format: {path.suffix}")
+
+
 def write_repair_pack_files(
     actions: list[RepairAction],
     *,
@@ -168,3 +186,16 @@ def _write_repair_csv(path: Path, actions: list[RepairAction]) -> None:
         writer.writeheader()
         for action in actions:
             writer.writerow(asdict(action))
+
+
+def _action_from_mapping(row: dict[str, object], row_number: int) -> RepairAction:
+    values: dict[str, str] = {}
+    for field in REPAIR_ACTION_FIELDS:
+        values[field] = str(row.get(field, "") or "").strip()
+    if not values["sample_id"]:
+        raise InputValidationError(f"row {row_number}: sample_id is required")
+    if not values["action"]:
+        raise InputValidationError(f"row {row_number}: action is required")
+    if values["action"] == "replace_with_url" and not values["replacement_url"]:
+        raise InputValidationError(f"row {row_number}: replacement_url is required")
+    return RepairAction(**values)

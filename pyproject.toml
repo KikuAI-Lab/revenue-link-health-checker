@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "revenue-link-health"
 version = "0.1.0"
-description = "Local-first revenue-link repair pack and QA report workflow"
+description = "Local-first revenue-link repair pack, document patching, and dropzone workflow"
 readme = "README.md"
 requires-python = ">=3.11"
 
