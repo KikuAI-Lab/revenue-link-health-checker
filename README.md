@@ -16,7 +16,7 @@ It is intentionally not a SaaS dashboard, browser extension, WordPress plugin, o
 - requires manual QA before a candidate issue becomes a confirmed issue;
 - generates repair-pack CSV, JSON, and Markdown outputs for editor workflows;
 - patches local Markdown/HTML documents from verified replacement actions;
-- runs a dependency-free localhost dropzone UI for one-window document analysis;
+- runs a dependency-free localhost dropzone UI for one-window document analysis and patching;
 - generates compact benchmark reports for proof batches.
 
 ## Privacy And Safety
@@ -84,7 +84,7 @@ For the simplest local workflow, start the dropzone:
 linkhealth dropzone
 ```
 
-Then open the shown localhost URL and drop a Markdown or HTML file. The browser sends the file only to the local Python process on your machine. The result appears in the same window as a compact repair pack with candidate issues, ambiguous results, OK links, and editor instructions.
+Then open the shown localhost URL and drop a Markdown or HTML file. The browser sends the file only to the local Python process on your machine. The result appears in the same window as a compact repair pack with candidate issues, ambiguous results, OK links, editor instructions, replacement URL inputs, patched preview, and patched-file download.
 
 This is not a hosted SaaS upload flow. External links are checked from your machine so browser CORS does not block status and redirect inspection.
 
@@ -177,7 +177,7 @@ linkhealth patch-doc \
 
 `patch-doc` only applies `replace_with_url` actions that include a replacement URL. It does not auto-edit blocked, ambiguous, unreviewed, or remove-or-replace actions.
 
-One-command document analysis is available through `linkhealth dropzone`.
+One-command document analysis and inline replacement patching are available through `linkhealth dropzone`.
 
 ## Public Page Collection
 
