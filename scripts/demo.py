@@ -17,6 +17,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from linkhealth.io import write_samples_csv
 from linkhealth.models import SampleInput
+from linkhealth.repair import build_repair_pack, write_repair_pack_files
 from linkhealth.report import Gates, build_report, write_report_files
 from linkhealth.workflow import (
     QADecision,
@@ -86,6 +87,18 @@ def run_demo(output_dir: Path) -> dict[str, object]:
     reviewed = apply_qa_decisions(rows, decisions)
     write_evidence_csv(output_dir / "reviewed-evidence.csv", reviewed)
     write_evidence_jsonl(output_dir / "reviewed-evidence.jsonl", reviewed)
+    repair_actions = build_repair_pack(
+        reviewed,
+        replacements={
+            "web-001": f"{server.base_url}/ok",
+        },
+    )
+    write_repair_pack_files(
+        repair_actions,
+        csv_path=output_dir / "repair-plan.csv",
+        json_path=output_dir / "repair-plan.json",
+        markdown_path=output_dir / "repair-plan.md",
+    )
 
     report = build_report(
         reviewed,

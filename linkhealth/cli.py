@@ -8,6 +8,7 @@ from .benchmark import init_benchmark_kit
 from .checker import CheckerConfig, check_url
 from .io import load_samples, write_samples_csv
 from .models import InputValidationError, SampleInput
+from .repair import build_repair_pack, load_replacements, write_repair_pack_files
 from .report import Gates, build_report, write_report_files
 from .web import WebCollectionError, collect_public_page_links
 from .workflow import (
@@ -76,6 +77,14 @@ def _parser() -> argparse.ArgumentParser:
     report.add_argument("--max-qa-minutes-per-100", type=float, default=60.0)
     report.add_argument("--min-value-clarity-score", type=float, default=4.0)
     report.set_defaults(handler=_report)
+
+    repair = subparsers.add_parser("repair-pack", help="generate editor-ready repair actions from reviewed evidence")
+    repair.add_argument("--evidence", type=Path, required=True)
+    repair.add_argument("--replacements", type=Path)
+    repair.add_argument("--output-csv", type=Path, required=True)
+    repair.add_argument("--output-json", type=Path, required=True)
+    repair.add_argument("--output-markdown", type=Path, required=True)
+    repair.set_defaults(handler=_repair_pack)
 
     return parser
 
@@ -153,6 +162,20 @@ def _report(args: argparse.Namespace) -> int:
         html_path=args.output_html,
     )
     print(f"verdict {report.verdict} -> {args.output_markdown}")
+    return 0
+
+
+def _repair_pack(args: argparse.Namespace) -> int:
+    rows = load_evidence(args.evidence)
+    replacements = load_replacements(args.replacements) if args.replacements else None
+    actions = build_repair_pack(rows, replacements=replacements)
+    write_repair_pack_files(
+        actions,
+        csv_path=args.output_csv,
+        json_path=args.output_json,
+        markdown_path=args.output_markdown,
+    )
+    print(f"repair actions {len(actions)} -> {args.output_markdown}")
     return 0
 
 

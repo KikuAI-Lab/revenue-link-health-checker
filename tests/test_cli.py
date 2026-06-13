@@ -7,7 +7,7 @@ from pathlib import Path
 
 from linkhealth.cli import main
 from linkhealth.io import load_samples
-from linkhealth.workflow import load_evidence
+from linkhealth.workflow import EvidenceRow, load_evidence, write_evidence_csv
 from tests.support import FixtureServer
 
 
@@ -116,6 +116,73 @@ class CliTests(unittest.TestCase):
         samples = load_samples(output)
         self.assertEqual(samples[0].sample_id, "page-a-001")
         self.assertEqual(samples[0].source_context, "Recommended item")
+
+    def test_repair_pack_writes_editor_outputs(self) -> None:
+        directory = Path(tempfile.mkdtemp())
+        evidence = directory / "reviewed.csv"
+        replacements = directory / "replacements.csv"
+        output_csv = directory / "repair-plan.csv"
+        output_json = directory / "repair-plan.json"
+        output_md = directory / "repair-plan.md"
+        write_evidence_csv(
+            evidence,
+            [
+                EvidenceRow(
+                    sample_id="web-001",
+                    lane="web_affiliate",
+                    consent_basis="public_page",
+                    source_reference="source",
+                    source_context="Missing item",
+                    original_url="https://old.example/item",
+                    normalized_url="https://old.example/item",
+                    redirect_chain=("https://old.example/item",),
+                    final_url="https://old.example/item",
+                    observed_status="HTTP 404",
+                    candidate_issue_type="http_404",
+                    automated_verdict="candidate_issue",
+                    manual_qa_verdict="confirmed",
+                    confidence="high",
+                    false_positive=False,
+                    blocked_or_ambiguous=False,
+                    check_time_seconds=0.01,
+                    estimated_direct_cost_usd=0,
+                    evidence_note="HTTP 404",
+                    checked_at="2026-06-13T00:00:00+00:00",
+                    review_minutes=1,
+                    value_clarity_score=5,
+                    recommended_action="Replace missing destination",
+                    screenshot_or_evidence_path="evidence/web-001.png",
+                )
+            ],
+        )
+        replacements.write_text(
+            "sample_id,replacement_url\n"
+            "web-001,https://new.example/item\n",
+            encoding="utf-8",
+        )
+
+        self.assertEqual(
+            main(
+                [
+                    "repair-pack",
+                    "--evidence",
+                    str(evidence),
+                    "--replacements",
+                    str(replacements),
+                    "--output-csv",
+                    str(output_csv),
+                    "--output-json",
+                    str(output_json),
+                    "--output-markdown",
+                    str(output_md),
+                ]
+            ),
+            0,
+        )
+
+        self.assertIn("replace_with_url", output_csv.read_text(encoding="utf-8"))
+        self.assertEqual(json.loads(output_json.read_text(encoding="utf-8"))[0]["replacement_url"], "https://new.example/item")
+        self.assertIn("Replace https://old.example/item", output_md.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

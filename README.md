@@ -1,8 +1,8 @@
-# Revenue Link Health Checker
+# Revenue Link Repair Pack
 
-Standalone local-first tooling for monetized, affiliate, and recommendation-link health checks.
+Standalone local-first tooling for monetized, affiliate, and recommendation-link repair packs.
 
-The project helps an operator turn user-provided or rights-clean public link samples into a QA-ready report. It can identify deterministic candidate issues, preserve redirect/status evidence, apply manual review decisions, and generate Markdown, HTML, JSON, CSV, and JSONL outputs.
+The project helps an operator turn user-provided or rights-clean public link samples into an evidence-backed repair plan. It can identify deterministic candidate issues, preserve redirect/status evidence, apply manual review decisions, accept optional replacement URLs, and generate editor-ready actions instead of only saying "you have broken links."
 
 It is intentionally not a SaaS dashboard, browser extension, WordPress plugin, outreach system, public Telegram scraper, crawler fleet, or automatic link replacement tool.
 
@@ -13,7 +13,8 @@ It is intentionally not a SaaS dashboard, browser extension, WordPress plugin, o
 - checks redirects, HTTP status, timeout, access-control, and ambiguous outcomes;
 - keeps blocked, CAPTCHA-like, login-gated, geo-dependent, and rate-limited results as ambiguous;
 - requires manual QA before a candidate issue becomes a confirmed issue;
-- generates a compact report for proof batches and small operator workflows.
+- generates repair-pack CSV, JSON, and Markdown outputs for editor workflows;
+- generates compact benchmark reports for proof batches.
 
 ## Privacy And Safety
 
@@ -48,7 +49,7 @@ python3 -m linkhealth --help
 
 ## Offline Demo
 
-The demo starts a loopback HTTP fixture server, checks synthetic links, applies manual QA decisions, and writes a complete local report bundle.
+The demo starts a loopback HTTP fixture server, checks synthetic links, applies manual QA decisions, and writes a complete local repair/report bundle.
 
 ```bash
 python3 scripts/demo.py --output-dir .local/demo-output
@@ -64,6 +65,9 @@ Expected files:
   qa-decisions.csv
   reviewed-evidence.csv
   reviewed-evidence.jsonl
+  repair-plan.csv
+  repair-plan.json
+  repair-plan.md
   report.md
   report.html
   report.json
@@ -111,6 +115,30 @@ linkhealth report \
   --output-markdown .local/run/report.md \
   --output-html .local/run/report.html
 ```
+
+Generate an editor-ready repair pack:
+
+```csv
+sample_id,replacement_url
+web-001,https://merchant.example/current-product
+```
+
+```bash
+linkhealth repair-pack \
+  --evidence .local/run/reviewed-evidence.csv \
+  --replacements replacements.csv \
+  --output-csv .local/run/repair-plan.csv \
+  --output-json .local/run/repair-plan.json \
+  --output-markdown .local/run/repair-plan.md
+```
+
+Repair-pack actions are:
+
+- `replace_with_url` when a manually confirmed issue has a supplied replacement URL;
+- `remove_or_replace` when a manually confirmed issue needs an editor decision;
+- `manual_review` when the checker saw a blocked, CAPTCHA-like, login-gated, rate-limited, or geo-dependent result;
+- `needs_manual_qa` when an automated candidate issue has not been reviewed yet;
+- `keep` when no action is needed.
 
 ## Public Page Collection
 
