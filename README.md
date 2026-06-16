@@ -10,6 +10,8 @@ It is intentionally not a SaaS dashboard, browser extension, WordPress plugin, o
 
 - imports CSV or JSONL link samples;
 - extracts links from local Markdown and HTML documents;
+- extracts plain-text HTTP(S) links from local notes, CSV-like exports, and pasted text files;
+- runs an offline deterministic diagnosis mode for local document problems that do not require live HTTP status checks;
 - optionally collects outbound content links from one robots-allowed public page;
 - checks redirects, HTTP status, timeout, access-control, and ambiguous outcomes;
 - keeps blocked, CAPTCHA-like, login-gated, geo-dependent, and rate-limited results as ambiguous;
@@ -84,9 +86,11 @@ For the simplest local workflow, start the dropzone:
 linkhealth dropzone
 ```
 
-Then open the shown localhost URL and drop a Markdown or HTML file. The browser sends the file only to the local Python process on your machine. The result appears in the same window as a compact repair pack with candidate issues, ambiguous results, OK links, editor instructions, replacement URL inputs, patched preview, and patched-file download.
+Then open the shown localhost URL and drop a Markdown, HTML, TXT, or CSV-like file. The browser sends the file only to the local Python process on your machine. The result appears in the same window as a compact repair pack with candidate issues, ambiguous results, OK links, editor instructions, replacement URL inputs, patched preview, and patched-file download.
 
 This is not a hosted SaaS upload flow. External links are checked from your machine so browser CORS does not block status and redirect inspection.
+
+The dropzone also includes an **Offline deterministic diagnosis only** mode. That mode does not call external URLs. It can flag local document issues such as unsupported link targets, insecure `http://` destinations, affiliate-looking tracking parameters, and duplicate tracking-parameter variants. It does not prove whether a destination is live, redirected, blocked, or sold out.
 
 ## Basic Workflow
 
@@ -157,7 +161,7 @@ Repair-pack actions are:
 
 ## Document Workflow
 
-Extract links from a local Markdown or HTML file into sample CSV:
+Extract links from a local Markdown, HTML, TXT, or CSV-like file into sample CSV:
 
 ```bash
 linkhealth extract-doc-links \
@@ -178,6 +182,8 @@ linkhealth patch-doc \
 `patch-doc` only applies `replace_with_url` actions that include a replacement URL. It does not auto-edit blocked, ambiguous, unreviewed, or remove-or-replace actions.
 
 One-command document analysis and inline replacement patching are available through `linkhealth dropzone`.
+
+For a fully offline first pass, use the dropzone checkbox labeled **Offline deterministic diagnosis only**. This is best when you want a fast local repair surface before any live URL checking. Switch it off when you need HTTP status and redirect evidence from your machine.
 
 ## Public Page Collection
 

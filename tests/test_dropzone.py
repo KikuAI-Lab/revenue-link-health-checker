@@ -7,7 +7,13 @@ from threading import Thread
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from linkhealth.dropzone import create_dropzone_server, create_dropzone_server_with_fallback, dropzone_url
+from linkhealth.dropzone import (
+    analyze_payload,
+    create_dropzone_server,
+    create_dropzone_server_with_fallback,
+    dropzone_url,
+    patch_payload,
+)
 from tests.support import FixtureServer
 
 
@@ -81,6 +87,32 @@ class DropzoneServerTests(unittest.TestCase):
         self.assertIn("needs_manual_qa", [action["action"] for action in response["actions"]])
         self.assertIn("# Revenue Link Repair Pack", response["repair_markdown"])
 
+    def test_analyzes_document_in_deterministic_mode_without_live_checker(self) -> None:
+        def failing_checker(url: str):
+            raise AssertionError(f"checker should not be called for {url}")
+
+        response = analyze_payload(
+            {
+                "filename": "roundup.md",
+                "mode": "deterministic",
+                "text": (
+                    "[Insecure](http://merchant.example/item)\n"
+                    "[Tracked](https://shop.example/item?tag=site-20)\n"
+                ),
+            },
+            checker=failing_checker,
+        )
+
+        self.assertEqual(response["mode"], "deterministic")
+        self.assertEqual(response["sample_count"], 2)
+        self.assertEqual(response["candidate_issues"], 2)
+        self.assertEqual(response["blocked_or_ambiguous"], 0)
+        self.assertEqual(
+            [finding["issue_type"] for finding in response["deterministic_findings"]],
+            ["affiliate_tracking_parameter", "insecure_http_url"],
+        )
+        self.assertIn("manual_review", [action["action"] for action in response["actions"]])
+
     def test_patches_document_from_inline_replacements(self) -> None:
         routes = {
             "/missing": (404, {}, b"missing"),
@@ -112,6 +144,24 @@ class DropzoneServerTests(unittest.TestCase):
         self.assertEqual(response["skipped_actions"], 1)
         self.assertIn(f"[Missing]({fixture.base_url}/ok)", response["patched_text"])
         self.assertNotIn(f"[Missing]({fixture.base_url}/missing)", response["patched_text"])
+
+    def test_patches_document_in_deterministic_mode_without_live_checker(self) -> None:
+        def failing_checker(url: str):
+            raise AssertionError(f"checker should not be called for {url}")
+
+        response = patch_payload(
+            {
+                "filename": "roundup.md",
+                "mode": "deterministic",
+                "text": "[Insecure](http://merchant.example/item)\n",
+                "replacements": {"roundup-001": "https://merchant.example/current"},
+            },
+            checker=failing_checker,
+        )
+
+        self.assertEqual(response["mode"], "deterministic")
+        self.assertEqual(response["replacements_applied"], 1)
+        self.assertIn("[Insecure](https://merchant.example/current)", response["patched_text"])
 
     def test_rejects_invalid_inline_replacement_url(self) -> None:
         server = create_dropzone_server(("127.0.0.1", 0))

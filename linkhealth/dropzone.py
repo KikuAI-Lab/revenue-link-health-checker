@@ -10,7 +10,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from .checker import CheckerConfig, check_url
-from .document import extract_document_links, patch_document
+from .document import DocumentFinding, diagnose_document_links, extract_document_links, patch_document
 from .models import InputValidationError
 from .repair import RepairAction, build_repair_pack, render_repair_markdown
 from .workflow import Checker, EvidenceRow, check_samples
@@ -117,31 +117,59 @@ def dropzone_url(host: str, server: ThreadingHTTPServer) -> str:
 
 def analyze_payload(payload: dict[str, object], *, checker: Checker | None = None) -> dict[str, object]:
     filename, text = _payload_document(payload)
+    mode = _payload_mode(payload)
+    if mode == "deterministic":
+        samples = extract_document_links(text, filename=filename)
+        findings = diagnose_document_links(text, filename=filename)
+        actions = _deterministic_actions(findings)
+        sample_ids_with_findings = {finding.sample_id for finding in findings}
+        return {
+            "filename": filename,
+            "mode": mode,
+            "sample_count": len(samples),
+            "candidate_issues": len(findings),
+            "blocked_or_ambiguous": 0,
+            "ok": sum(1 for sample in samples if sample.sample_id not in sample_ids_with_findings),
+            "actions": [_action_payload(action) for action in actions],
+            "evidence": [],
+            "deterministic_findings": [_finding_payload(finding) for finding in findings],
+            "repair_markdown": render_repair_markdown(actions),
+        }
     active_checker = checker or _default_checker
     samples = extract_document_links(text, filename=filename)
     rows = check_samples(samples, checker=active_checker)
     actions = build_repair_pack(rows)
     return {
         "filename": filename,
+        "mode": mode,
         "sample_count": len(samples),
         "candidate_issues": sum(1 for row in rows if row.automated_verdict == "candidate_issue"),
         "blocked_or_ambiguous": sum(1 for row in rows if row.blocked_or_ambiguous),
         "ok": sum(1 for row in rows if row.automated_verdict == "ok"),
         "actions": [_action_payload(action) for action in actions],
         "evidence": [_evidence_payload(row) for row in rows],
+        "deterministic_findings": [],
         "repair_markdown": render_repair_markdown(actions),
     }
 
 
 def patch_payload(payload: dict[str, object], *, checker: Checker | None = None) -> dict[str, object]:
     filename, text = _payload_document(payload)
+    mode = _payload_mode(payload)
     replacements = _payload_replacements(payload)
-    active_checker = checker or _default_checker
-    rows = check_samples(extract_document_links(text, filename=filename), checker=active_checker)
-    actions = _inline_replacement_actions(build_repair_pack(rows), replacements)
+    if mode == "deterministic":
+        actions = _inline_replacement_actions(
+            _deterministic_actions(diagnose_document_links(text, filename=filename)),
+            replacements,
+        )
+    else:
+        active_checker = checker or _default_checker
+        rows = check_samples(extract_document_links(text, filename=filename), checker=active_checker)
+        actions = _inline_replacement_actions(build_repair_pack(rows), replacements)
     result = patch_document(text, actions)
     return {
         "filename": filename,
+        "mode": mode,
         "replacements_applied": result.replacements_applied,
         "skipped_actions": result.skipped_actions,
         "patched_text": result.text,
@@ -175,6 +203,15 @@ def _payload_document(payload: dict[str, object]) -> tuple[str, str]:
     return filename, text
 
 
+def _payload_mode(payload: dict[str, object]) -> str:
+    mode = str(payload.get("mode", "live")).strip().lower()
+    if mode in {"", "live"}:
+        return "live"
+    if mode in {"deterministic", "offline", "local"}:
+        return "deterministic"
+    raise InputValidationError("mode must be live or deterministic")
+
+
 def _payload_replacements(payload: dict[str, object]) -> dict[str, str]:
     raw = payload.get("replacements", {})
     if not isinstance(raw, dict):
@@ -190,6 +227,25 @@ def _payload_replacements(payload: dict[str, object]) -> dict[str, str]:
             raise InputValidationError(f"replacement URL for {key} must be an absolute http(s) URL")
         replacements[key] = value
     return replacements
+
+
+def _deterministic_actions(findings: list[DocumentFinding]) -> list[RepairAction]:
+    return [
+        RepairAction(
+            sample_id=finding.sample_id,
+            action="manual_review",
+            source_reference=finding.source_reference,
+            source_context=finding.source_context,
+            original_url=finding.original_url,
+            final_url=finding.original_url,
+            replacement_url="",
+            editor_instruction=finding.recommended_action,
+            confidence=f"deterministic:{finding.severity}",
+            evidence=f"{finding.issue_type} | {finding.evidence}",
+            screenshot_or_evidence_path="",
+        )
+        for finding in findings
+    ]
 
 
 def _inline_replacement_actions(
@@ -244,6 +300,20 @@ def _evidence_payload(row: EvidenceRow) -> dict[str, Any]:
     }
 
 
+def _finding_payload(finding: DocumentFinding) -> dict[str, object]:
+    return {
+        "sample_id": finding.sample_id,
+        "source_reference": finding.source_reference,
+        "source_context": finding.source_context,
+        "original_url": finding.original_url,
+        "issue_type": finding.issue_type,
+        "severity": finding.severity,
+        "recommended_action": finding.recommended_action,
+        "evidence": finding.evidence,
+        "network_free": finding.network_free,
+    }
+
+
 _INDEX_HTML = """<!doctype html>
 <html lang="en">
 <head>
@@ -264,7 +334,7 @@ _INDEX_HTML = """<!doctype html>
     #file { display: none; }
     input[type="url"] { box-sizing: border-box; width: 100%; border: 1px solid #c8d2dc; border-radius: 6px; padding: 8px 10px; font: inherit; }
     pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #101820; color: #f5f7fb; padding: 16px; border-radius: 8px; }
-    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 18px 0; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin: 18px 0; }
     .stat { background: #fff; border: 1px solid #dbe2ea; border-radius: 8px; padding: 12px; }
     .stat strong { display: block; font-size: 22px; }
     .panel { margin-top: 18px; }
@@ -282,14 +352,20 @@ _INDEX_HTML = """<!doctype html>
 <body>
   <main>
     <h1>Revenue Link Repair Pack</h1>
-    <p>Drop a local Markdown or HTML file. Analysis runs on this machine; the file is not uploaded to a remote service.</p>
+    <p>Drop a local Markdown, HTML, TXT, or CSV-like file. Analysis runs on this machine; the file is not uploaded to a remote service.</p>
     <div id="drop">
       <div>
         <p><strong>Drop file here</strong></p>
         <button id="pick" type="button">Choose file</button>
-        <input id="file" type="file" accept=".md,.markdown,.html,.htm,text/markdown,text/html">
+        <input id="file" type="file" accept=".md,.markdown,.html,.htm,.txt,.csv,text/markdown,text/html,text/plain,text/csv">
       </div>
     </div>
+    <p>
+      <label>
+        <input id="deterministic" type="checkbox">
+        Offline deterministic diagnosis only; does not prove live HTTP status.
+      </label>
+    </p>
     <div class="stats" id="stats" hidden></div>
     <section class="panel" id="findings" hidden>
       <div class="actions">
@@ -330,6 +406,7 @@ _INDEX_HTML = """<!doctype html>
     const download = document.getElementById('download');
     const apply = document.getElementById('apply');
     const clear = document.getElementById('clear');
+    const deterministic = document.getElementById('deterministic');
     let currentFile = null;
     document.getElementById('pick').addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', () => fileInput.files[0] && analyze(fileInput.files[0]));
@@ -354,7 +431,7 @@ _INDEX_HTML = """<!doctype html>
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: file.name, text })
+        body: JSON.stringify({ filename: file.name, text, mode: selectedMode() })
       });
       const payload = await response.json();
       if (!response.ok) {
@@ -366,7 +443,8 @@ _INDEX_HTML = """<!doctype html>
         ['Links', payload.sample_count],
         ['Issues', payload.candidate_issues],
         ['Ambiguous', payload.blocked_or_ambiguous],
-        ['OK', payload.ok]
+        ['OK', payload.ok],
+        ['Mode', payload.mode]
       ].map(([label, value]) => `<div class="stat"><strong>${value}</strong>${label}</div>`).join('');
       output.textContent = payload.repair_markdown;
       renderActions(payload.actions);
@@ -398,7 +476,7 @@ _INDEX_HTML = """<!doctype html>
       const response = await fetch('/api/patch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...currentFile, replacements })
+        body: JSON.stringify({ ...currentFile, replacements, mode: selectedMode() })
       });
       const payload = await response.json();
       apply.disabled = false;
@@ -417,6 +495,9 @@ _INDEX_HTML = """<!doctype html>
       const index = filename.lastIndexOf('.');
       if (index <= 0) return filename + '.patched.txt';
       return filename.slice(0, index) + '.patched' + filename.slice(index);
+    }
+    function selectedMode() {
+      return deterministic.checked ? 'deterministic' : 'live';
     }
     function escapeHtml(value) {
       return String(value).replace(/[&<>"']/g, character => ({
