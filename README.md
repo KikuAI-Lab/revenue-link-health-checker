@@ -78,6 +78,16 @@ Expected files:
   report.json
 ```
 
+## Sample Files
+
+Synthetic sample files live in [examples/](examples/). Use them to try the dropzone or document extraction without customer data.
+
+```bash
+python3 -m linkhealth extract-doc-links \
+  --input-doc examples/sample-affiliate-roundup.txt \
+  --output-csv .local/sample-roundup-links.csv
+```
+
 ## Local Dropzone
 
 For the simplest local workflow, start the dropzone:
@@ -211,6 +221,8 @@ Default report gates are conservative:
 - value clarity score `>=4/5`.
 
 See [docs/validation.md](docs/validation.md) for the first public web-affiliate proof batch summary.
+
+The next validation lane is documented in [docs/activation-sprint.md](docs/activation-sprint.md) and [docs/proof-batch-2.md](docs/proof-batch-2.md).
 
 ## Tests
 

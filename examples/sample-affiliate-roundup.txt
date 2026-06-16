@@ -1,0 +1,15 @@
+# Sample Affiliate Roundup
+
+This is synthetic demo content. Do not treat these links as real broken-link evidence.
+
+Best travel camera:
+https://merchant.example/old-camera?ref=demo
+
+Budget marketplace pick:
+https://amzn.to/demo-camera
+
+Duplicate tracking variant:
+https://merchant.example/old-camera?utm_source=roundup
+
+Research-only reference:
+https://example.org/docs?utm_source=list
