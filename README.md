@@ -4,7 +4,15 @@ Revenue Link Repair Pack is local-first tooling for turning monetized-link check
 
 **[Run the offline demo](#offline-demo)**
 
-[Quickstart](#quickstart) · [Local dropzone](#local-dropzone) · [Status](#status)
+[Docs](#what-it-does) · [Examples](#offline-demo) · [Status](#status)
+
+Sample output:
+
+```text
+repair-plan.csv
+repair-plan.md
+report.html
+```
 
 The project helps a user drop a local Markdown/HTML page or an operator sample file into a deterministic repair workflow. It can identify deterministic candidate issues, preserve redirect/status evidence, apply manual review decisions, accept optional replacement URLs, patch exact document URLs, and generate editor-ready actions instead of only saying "you have broken links."
 
