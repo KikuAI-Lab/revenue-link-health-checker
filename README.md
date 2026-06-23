@@ -1,6 +1,10 @@
 # Revenue Link Repair Pack
 
-Standalone local-first tooling for monetized, affiliate, and recommendation-link repair packs.
+Revenue Link Repair Pack is local-first tooling for turning monetized-link checks into editor-ready repair artifacts.
+
+**[Run the offline demo](#offline-demo)**
+
+[Quickstart](#quickstart) · [Local dropzone](#local-dropzone) · [Status](#status)
 
 The project helps a user drop a local Markdown/HTML page or an operator sample file into a deterministic repair workflow. It can identify deterministic candidate issues, preserve redirect/status evidence, apply manual review decisions, accept optional replacement URLs, patch exact document URLs, and generate editor-ready actions instead of only saying "you have broken links."
 
@@ -30,7 +34,7 @@ It is intentionally not a SaaS dashboard, browser extension, WordPress plugin, o
 - The `check`, `collect-web`, and `dropzone` analysis flows make outbound HTTP requests from your machine.
 - The tool does not bypass access controls, rotate proxies, solve CAPTCHAs, spoof browser identity, or scrape private/authenticated pages.
 
-## Install
+## Quickstart
 
 Python 3.11 or newer is required.
 
