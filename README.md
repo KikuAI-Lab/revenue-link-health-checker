@@ -6,6 +6,8 @@ Revenue Link Repair Pack is local-first tooling for turning monetized-link check
 
 [Docs](#what-it-does) · [Examples](#offline-demo) · [Status](#status)
 
+![Revenue Link Repair Pack local link repair interface](docs/assets/readme-screenshot.png)
+
 Sample output:
 
 ```text
