@@ -237,3 +237,7 @@ python3 -m unittest discover -s tests -v
 ## Status
 
 MVP. The current version is a local-first repair workflow with both CLI and localhost dropzone surfaces. Any paid report, monitoring, hosted API, MCP server, or bulk automation should wait for stronger usage and validation evidence.
+
+## License
+
+AGPL-3.0. See [LICENSE](LICENSE).
