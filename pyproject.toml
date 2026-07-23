@@ -7,6 +7,7 @@ name = "revenue-link-health"
 version = "0.1.0"
 description = "Local-first revenue-link repair pack, document patching, and dropzone workflow"
 readme = "README.md"
+license = { text = "AGPL-3.0-only" }
 requires-python = ">=3.11"
 
 [project.scripts]

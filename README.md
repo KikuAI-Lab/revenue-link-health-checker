@@ -1,12 +1,12 @@
-# Revenue Link Repair Pack
+# Revenue Link Health Checker — Local Repair Pack
 
-Revenue Link Repair Pack is local-first tooling for turning monetized-link checks into editor-ready repair artifacts.
+Revenue Link Health Checker is local-first tooling for turning monetized-link checks into editor-ready repair artifacts.
 
-**[Run the offline demo](#offline-demo)**
+**[Open the hosted offline checker](https://kikuai.dev/revenue-link-health-checker/)** · **[Run the repository workflow](#quickstart)**
 
 [Docs](#what-it-does) · [Examples](#offline-demo) · [Status](#status)
 
-![Revenue Link Repair Pack local link repair interface](docs/assets/readme-screenshot.png)
+![Revenue Link Health Checker local repair interface](docs/assets/readme-screenshot.png)
 
 Sample output:
 
@@ -16,7 +16,14 @@ repair-plan.md
 report.html
 ```
 
-The project helps a user drop a local Markdown/HTML page or an operator sample file into a deterministic repair workflow. It can identify deterministic candidate issues, preserve redirect/status evidence, apply manual review decisions, accept optional replacement URLs, patch exact document URLs, and generate editor-ready actions instead of only saying "you have broken links."
+The hosted KikuAI checker is an offline browser-local first pass: it reads the
+selected file in the browser, does not fetch destination URLs, and produces a
+local risk report.
+
+This repository also contains CLI and localhost dropzone workflows. They can
+optionally make outbound checks from the user's machine, preserve
+redirect/status evidence, apply manual review decisions, accept replacement
+URLs, patch exact document URLs, and generate editor-ready repair artifacts.
 
 It is intentionally not a SaaS dashboard, browser extension, WordPress plugin, outreach system, public Telegram scraper, crawler fleet, or automatic link replacement tool.
 
@@ -40,8 +47,9 @@ It is intentionally not a SaaS dashboard, browser extension, WordPress plugin, o
 - No API keys are required.
 - No AI model is required.
 - No account or backend service is required.
-- Your local files are not uploaded by this tool.
-- The `check`, `collect-web`, and `dropzone` analysis flows make outbound HTTP requests from your machine.
+- The hosted checker processes local files in the browser and does not fetch destination URLs.
+- The repository CLI and localhost dropzone do not upload local files.
+- The `check`, `collect-web`, and non-offline `dropzone` analysis flows make outbound HTTP requests from your machine.
 - The tool does not bypass access controls, rotate proxies, solve CAPTCHAs, spoof browser identity, or scrape private/authenticated pages.
 
 ## Quickstart
